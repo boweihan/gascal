@@ -47,11 +47,14 @@ func (i *Interpreter) getNextToken() (Token, error) {
 	// get character at current position
 	currentChar := string(text[i.pos])
 
+	for currentChar == " " {
+		i.pos++
+		currentChar = string(text[i.pos])
+	}
+
 	// if the character is a digit convert it to an int
 	if isNumeric(currentChar) == true {
-		fmt.Println(getNumber(currentChar))
-		token := Token{getNumber(currentChar), "", INTEGER}
-		i.pos += 1
+		token := Token{i.getNumber(), "", INTEGER}
 		return token, nil
 	}
 
@@ -61,7 +64,30 @@ func (i *Interpreter) getNextToken() (Token, error) {
 		return token, nil
 	}
 
+	if currentChar == "-" {
+		token := Token{0, currentChar, MINUS}
+		i.pos += 1
+		return token, nil
+	}
+
 	return Token{0, "", ""}, &GeneralError{"failed to get next token"}
+}
+
+func (i *Interpreter) getNumber() int {
+	currentChar := string(i.text[i.pos])
+	isNumber := isNumeric(currentChar)
+	totalChars := ""
+	for isNumber == true {
+		totalChars += currentChar
+		i.pos += 1
+		if i.pos > len(i.text)-1 {
+			isNumber = false
+		} else {
+			currentChar = string(i.text[i.pos])
+			isNumber = isNumeric(currentChar)
+		}
+	}
+	return getNumber(totalChars)
 }
 
 func (i *Interpreter) eat(tokenStyle string) (Token, error) {
@@ -69,8 +95,10 @@ func (i *Interpreter) eat(tokenStyle string) (Token, error) {
 		token, err := i.getNextToken()
 		if err == nil {
 			i.currentToken = token
+			return i.currentToken, nil
+		} else {
+			return Token{0, "", ""}, &GeneralError{"failed to eat token"}
 		}
-		return i.currentToken, nil
 	} else {
 		return Token{0, "", ""}, &GeneralError{"failed to eat token"}
 	}
@@ -84,15 +112,31 @@ func (i *Interpreter) expr() int {
 	}
 
 	left := i.currentToken
+
 	i.eat(INTEGER)
 
-	i.eat(PLUS)
+	_, operr := i.eat(PLUS)
+	if operr != nil {
+		i.eat(MINUS)
+		fmt.Println("Minus")
+		fmt.Println(operr)
+	} else {
+		fmt.Println("Plus")
+	}
 
 	right := i.currentToken
+
 	i.eat(INTEGER)
 
 	fmt.Println(left, right)
 
-	result := left.value + right.value
+	var result int
+
+	if operr == nil {
+		result = left.value + right.value
+	} else {
+		result = left.value - right.value
+	}
+
 	return result
 }
